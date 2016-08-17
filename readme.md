@@ -1,4 +1,4 @@
 #Shelby Ferrer's Family Law Website
 
-Home Page
-Contact
+- [ ] Home Page
+- [x] Contact Page
