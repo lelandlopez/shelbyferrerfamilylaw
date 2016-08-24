@@ -1,13 +1,84 @@
-Vue.component('')
+Vue.component('modal', {
+
+	template: '#modal-template',
+	props: ['show', 'index'],
+	data: function () {
+		return {
+			title: '',
+			body: ''
+		};
+	},
+	methods: {
+		sendMessage: function(headers_obj, message, threadId) {
+			var email = '';
+
+			for(var header in headers_obj)
+				email += header += ": "+headers_obj[header]+"\r\n";
+
+			email += "\r\n" + message;
+
+			var sendRequest = gapi.client.gmail.users.messages.send({
+				'userId': 'me',
+				'resource': {
+					'raw': window.btoa(email).replace(/\+/g, '-').replace(/\//g, '_'),
+					'threadId': threadId
+				}
+			});
+			return sendRequest.execute(function(response) {
+				console.log(response);
+			});
+		},
+		getHeader: function(headers, index) {
+			for (i = 0; i < headers.length; i++) { 
+				if(headers[i].name == index) {
+					return headers[i].value;
+				}
+			}		
+		},
+		savePost: function () {
+			this.show = false;
+			console.log(this.index);
+			var from = this.getHeader(this.index[this.index.length-1].payload.headers, 'From');
+			var subject = this.getHeader(this.index[this.index.length-1].payload.headers, 'Subject');
+			var to = this.getHeader(this.index[this.index.length-1].payload.headers, 'To');
+			var references = this.getHeader(this.index[this.index.length-1].payload.headers, 'References');
+			var replyTo = this.getHeader(this.index[this.index.length-1].payload.headers, 'Reply-To');
+			var threadId = this.index[this.index.length-1].threadId;
+			this.sendMessage(
+			{
+				'To': to,
+				'Subject': subject,
+				'From': from,
+				'References': references,
+				'In-Reply-To': replyTo,
+			}, this.body,
+			threadId
+			);
+		},
+		close: function () {
+			this.show = false;
+			this.body = '';
+		},
+	},
+	ready: function () {
+		document.addEventListener("keydown", (e) => {
+			if (this.show && e.keyCode == 27) {
+				this.close();
+			}
+		});
+	}
+});
 
 var myViewModel = new Vue({
 	data: {
+		message: [
+		],
+		showModal: false,
 		items: [
 		],
 		qwer: [
 		],
 		CLIENT_ID: '868665435885-91cm46n65170h0v4p5t4il7nfnuatmkk.apps.googleusercontent.com',
-
 		SCOPES: ['https://www.googleapis.com/auth/gmail.readonly', 'https://www.googleapis.com/auth/gmail.send'],
 		signed_in: false,
 		thread: [
@@ -44,16 +115,21 @@ var myViewModel = new Vue({
 			});
 		},
 		respond: function (item) {
-			console.log(item.message_ID);
+			var from = this.getHeader(item[item.length-1].payload.headers, 'From');
+			var subject = this.getHeader(item[item.length-1].payload.headers, 'Subject');
+			var to = this.getHeader(item[item.length-1].payload.headers, 'To');
+			var references = this.getHeader(item[item.length-1].payload.headers, 'References');
+			var replyTo = this.getHeader(item[item.length-1].payload.headers, 'Reply-To');
+			var threadId = item[item.length-1].threadId;
 			this.sendMessage(
 			{
-				'To': item.from,
-				'Subject': item.subject,
-				'From': item.from,
-				'References': item.references,
-				'In-Reply-To': item.from
+				'To': to,
+				'Subject': subject,
+				'From': from,
+				'References': references,
+				'In-Reply-To': replyTo,
 			}, "consultation",
-			item.threadId
+			threadId
 			);
 		},
 		flagEmail: function (email) {
@@ -220,9 +296,13 @@ var myViewModel = new Vue({
 			});
 			getPageOfThreads(request, []);
 		},
-		blah: function(str) {
-			return str;
+		blah: function() {
+			console.log('asdf');
+		},
+		openReplyModal: function(message) {
+			showModal = true;
 		}
+
 	}
 });
 
